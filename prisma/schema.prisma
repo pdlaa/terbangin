@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  admin
+  staff
+  customer
+  manager
+}
+
+enum SeatClass {
+  economy
+  business
+  first
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  used
+  expired
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+}
+
+enum Gender {
+  male
+  female
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id                           BigInt     @id @default(autoincrement()) @map("id")
+  name                         String     @map("name")
+  email                        String     @unique @map("email")
+  password                     String     @map("password")
+  role                         UserRole   @default(customer) @map("role")
+  rememberToken                String?    @map("remember_token")
+  emailVerifiedAt              DateTime?  @map("email_verified_at")
+  emailVerificationToken       String?    @map("email_verification_token")
+  emailVerificationTokenExpiry DateTime?  @map("email_verification_token_expiry")
+  phone                        String?    @map("phone")
+  createdAt                    DateTime   @default(now()) @map("created_at")
+  updatedAt                    DateTime   @updatedAt @map("updated_at")
+
+  bookings                     Booking[]
+  payments                     Payment[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Airport {
+  id          BigInt     @id @default(autoincrement()) @map("id")
+  name        String     @map("name")
+  city        String     @map("city")
+  country     String     @map("country")
+  iataCode    String     @unique @map("iata_code")
+  imageUrl    String?    @map("image_url")
+  timezone    String?    @map("timezone")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  departures  Flight[]   @relation("DepartureAirport")
+  arrivals    Flight[]   @relation("ArrivalAirport")
+
+  @@index([iataCode])
+  @@index([city])
+  @@index([country])
+  @@map("airports")
+}
+
+model Airline {
+  id          BigInt     @id @default(autoincrement()) @map("id")
+  name        String     @map("name")
+  code        String     @unique @map("code")
+  logo        String?    @map("logo")
+  description String?    @map("description")
+  photos      String?    @map("photos")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  airplanes   Airplane[]
+  flights     Flight[]
+
+  @@index([code])
+  @@map("airlines")
+}
+
+model Airplane {
+  id                 BigInt     @id @default(autoincrement()) @map("id")
+  airlineId          BigInt     @map("airline_id")
+  model              String     @map("model")
+  registrationNumber String?    @map("registration_number")
+  capacity           Int        @map("capacity")
+  description        String?    @map("description")
+  photos             String?    @map("photos")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  airline            Airline    @relation(fields: [airlineId], references: [id], onDelete: Cascade)
+  seats              Seat[]
+  flights            Flight[]
+
+  @@index([airlineId])
+  @@map("airplanes")
+}
+
+model Seat {
+  id          BigInt     @id @default(autoincrement()) @map("id")
+  airplaneId  BigInt     @map("airplane_id")
+  seatNumber  String     @map("seat_number")
+  class       SeatClass  @map("class")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  airplane    Airplane   @relation(fields: [airplaneId], references: [id], onDelete: Cascade)
+  passengers  Passenger[]
+
+  @@unique([airplaneId, seatNumber])
+  @@index([airplaneId])
+  @@index([class])
+  @@map("seats")
+}
+
+model Flight {
+  id                 BigInt     @id @default(autoincrement()) @map("id")
+  airlineId          BigInt     @map("airline_id")
+  airplaneId         BigInt     @map("airplane_id")
+  departureAirportId BigInt     @map("departure_airport_id")
+  arrivalAirportId   BigInt     @map("arrival_airport_id")
+  flightNumber       String     @map("flight_number")
+  departureTime      DateTime   @map("departure_time")
+  arrivalTime        DateTime   @map("arrival_time")
+  price              Decimal    @db.Decimal(12, 2) @map("price")
+  availableSeats     Int        @map("available_seats")
+  status             String     @default("scheduled") @map("status")
+  duration           Int?       @map("duration")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+
+  airline            Airline    @relation(fields: [airlineId], references: [id])
+  airplane           Airplane   @relation(fields: [airplaneId], references: [id])
+  departureAirport   Airport    @relation("DepartureAirport", fields: [departureAirportId], references: [id])
+  arrivalAirport     Airport    @relation("ArrivalAirport", fields: [arrivalAirportId], references: [id])
+  bookings           Booking[]
+  passengers         Passenger[]
+
+  @@index([airlineId])
+  @@index([airplaneId])
+  @@index([departureAirportId, arrivalAirportId])
+  @@index([departureTime])
+  @@index([status])
+  @@map("flights")
+}
+
+model Booking {
+  id             BigInt        @id @default(autoincrement()) @map("id")
+  userId         BigInt        @map("user_id")
+  flightId       BigInt        @map("flight_id")
+  bookingCode    String        @unique @map("booking_code")
+  
+  passengerName  String        @map("passenger_name")
+  passengerEmail String        @map("passenger_email")
+  passengerPhone String?       @map("passenger_phone")
+  
+  totalPrice     Decimal       @db.Decimal(12, 2) @map("total_price")
+  status         BookingStatus @default(pending) @map("status")
+  expiresAt      DateTime      @map("expires_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  user           User          @relation(fields: [userId], references: [id])
+  flight         Flight        @relation(fields: [flightId], references: [id])
+  passengers     Passenger[]
+  payment        Payment?
+
+  @@index([userId])
+  @@index([flightId])
+  @@index([bookingCode])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Passenger {
+  id             BigInt    @id @default(autoincrement()) @map("id")
+  bookingId      BigInt    @map("booking_id")
+  flightId       BigInt    @map("flight_id")
+  seatId         BigInt?   @map("seat_id")
+  fullName       String    @map("full_name")
+  gender         Gender    @map("gender")
+  birthDate      DateTime  @map("birth_date")
+  passportNumber String    @map("passport_number")
+  seatNumber     String?   @map("seat_number")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  booking        Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  flight         Flight    @relation(fields: [flightId], references: [id])
+  seat           Seat?     @relation(fields: [seatId], references: [id])
+
+  @@unique([flightId, seatId], name: "flight_seat_unique")
+  @@index([bookingId])
+  @@index([seatId])
+  @@index([flightId])
+  @@map("passengers")
+}
+
+model Payment {
+  id              BigInt        @id @default(autoincrement()) @map("id")
+  bookingId       BigInt        @unique @map("booking_id")
+  paymentMethod   String?       @map("payment_method")
+  amount          Decimal       @db.Decimal(12, 2) @map("amount")
+  paymentStatus   PaymentStatus @default(pending) @map("payment_status")
+  transactionCode String?       @map("transaction_code")
+  paidAt          DateTime?     @map("paid_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id])
+  userId          BigInt        @map("user_id")
+
+  @@index([bookingId])
+  @@index([transactionCode])
+  @@index([paymentStatus])
+  @@index([userId])
+  @@map("payments")
+}
