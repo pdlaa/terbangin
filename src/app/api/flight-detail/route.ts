@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
                 arrivalTime: true,
                 duration: true,
                 price: true,
+                priceMultiplierBusiness: true,
+                priceMultiplierFirst: true,
                 availableSeats: true,
                 airline: {
                     select: {
@@ -64,6 +66,8 @@ export async function GET(request: NextRequest) {
                 arrivalTime: flight.arrivalTime,
                 duration: flight.duration || 120,
                 price: flight.price.toString(),
+                priceMultiplierBusiness: flight.priceMultiplierBusiness ? Number(flight.priceMultiplierBusiness) : null,
+                priceMultiplierFirst: flight.priceMultiplierFirst ? Number(flight.priceMultiplierFirst) : null,
                 availableSeats: flight.availableSeats,
                 airline: flight.airline,
                 departureAirport: flight.departureAirport,

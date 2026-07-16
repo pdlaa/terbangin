@@ -13,9 +13,9 @@ function generateBookingCode(): string {
     return `TB${Date.now().toString(36).toUpperCase()}${rand}`;
 }
 
-function seatPriceMultiplier(seatClass: string): number {
-    if (seatClass === 'business') return 1.5;
-    if (seatClass === 'first') return 2;
+function seatPriceMultiplier(seatClass: string, flight: any): number {
+    if (seatClass === 'business') return Number(flight.priceMultiplierBusiness || 1.5);
+    if (seatClass === 'first') return Number(flight.priceMultiplierFirst || 2);
     return 1;
 }
 
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
 
                 const totalPrice = passengers.reduce((sum, p) => {
                     const seat = seatMap.get(p.seatId)!;
-                    return sum + Number(flight.price) * seatPriceMultiplier(seat.class);
+                    return sum + Number(flight.price) * seatPriceMultiplier(seat.class, flight);
                 }, 0);
 
                 const created = await tx.booking.create({

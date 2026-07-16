@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/layout/Navbar';
 import { useAuth } from '@/context/auth-context';
+import jsQR from 'jsqr';
 
 function ScannerContent() {
     const router = useRouter();
@@ -34,8 +35,12 @@ function ScannerContent() {
         }
     }, [authLoading, user, router]);
 
+    // Scanner Camera & Loop
     useEffect(() => {
-        if (!isScanning || !videoRef.current) return;
+        if (!isScanning) return;
+
+        let active = true;
+        let animationFrameId: number;
 
         const startCamera = async () => {
             try {
@@ -44,8 +49,11 @@ function ScannerContent() {
                     audio: false,
                 });
 
-                if (videoRef.current) {
+                if (active && videoRef.current) {
                     videoRef.current.srcObject = stream;
+                    videoRef.current.setAttribute('playsinline', 'true');
+                    videoRef.current.play();
+                    requestAnimationFrame(scanLoop);
                 }
             } catch (error) {
                 console.error('Error accessing camera:', error);
@@ -54,9 +62,43 @@ function ScannerContent() {
             }
         };
 
+        const scanLoop = () => {
+            if (!active) return;
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+
+            if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+                const context = canvas.getContext('2d');
+                if (context) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert',
+                    });
+
+                    if (code && code.data) {
+                        if (navigator.vibrate) {
+                            navigator.vibrate(100);
+                        }
+                        
+                        active = false;
+                        setIsScanning(false);
+                        handleCodeValidation(code.data);
+                        return;
+                    }
+                }
+            }
+            animationFrameId = requestAnimationFrame(scanLoop);
+        };
+
         startCamera();
 
         return () => {
+            active = false;
+            cancelAnimationFrame(animationFrameId);
             if (videoRef.current?.srcObject) {
                 const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
                 tracks.forEach((track) => track.stop());
@@ -64,28 +106,9 @@ function ScannerContent() {
         };
     }, [isScanning]);
 
-    // Simple QR decoder - untuk production bisa pakai library seperti `jsqr` atau `zxing`
-    const decodeQR = async (canvas: HTMLCanvasElement, video: HTMLVideoElement) => {
-        const context = canvas.getContext('2d');
-        if (!context) return null;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        try {
-            // Untuk demo, kami menggunakan canvas 2d. Untuk production gunakan library QR decoder
-            // Placeholder untuk scanning logic
-            return null;
-        } catch (error) {
-            console.error('QR decode error:', error);
-            return null;
-        }
-    };
-
-    const handleManualValidation = async (bookingCode: string) => {
-        if (!bookingCode.trim()) {
-            toast.error('Masukkan kode booking terlebih dahulu');
+    const handleCodeValidation = async (scannedText: string) => {
+        if (!scannedText.trim()) {
+            toast.error('Data QR/Booking Code kosong');
             return;
         }
 
@@ -93,10 +116,16 @@ function ScannerContent() {
         setValidationResult(null);
 
         try {
+            const normalizedText = scannedText.trim();
+        const isPossiblePayload = /^[A-Za-z0-9_-]{32,}$/.test(normalizedText);
+        const body = isPossiblePayload
+            ? { payload: normalizedText }
+            : { bookingCode: normalizedText.toUpperCase() };
+
             const response = await fetch('/api/boarding/validate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingCode: bookingCode.trim().toUpperCase() }),
+                body: JSON.stringify(body),
             });
 
             const data = await response.json();
@@ -113,16 +142,15 @@ function ScannerContent() {
                 });
 
                 if (data.used) {
-                    toast.success('✅ Penumpang berhasil diperiksa dan masuk ke pesawat!');
+                    toast.success('✅ Boarding sukses! Penumpang masuk ke dalam pesawat.');
                 } else {
                     toast.success('✅ Tiket valid! Penumpang dapat boarding.');
                 }
 
                 setManualBookingCode('');
-                setLastScannedCode(bookingCode);
+                setLastScannedCode(data.manifest?.code || scannedText);
 
-                // Auto-clear after 5 seconds
-                setTimeout(() => setValidationResult(null), 5000);
+                setTimeout(() => setValidationResult(null), 10000);
             } else {
                 setValidationResult({
                     valid: false,
@@ -139,6 +167,10 @@ function ScannerContent() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleManualValidation = async (bookingCode: string) => {
+        await handleCodeValidation(bookingCode);
     };
 
     if (authLoading) {

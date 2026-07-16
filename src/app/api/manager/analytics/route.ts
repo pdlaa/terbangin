@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (session.role !== 'manager') {
-            return NextResponse.json({ error: 'Forbidden - Manager only' }, { status: 403 });
+        if (!['manager', 'admin'].includes(session.role)) {
+            return NextResponse.json({ error: 'Forbidden - Manager or Admin only' }, { status: 403 });
         }
 
         const now = new Date();
@@ -96,13 +96,77 @@ export async function GET(request: NextRequest) {
                 bookings: data.bookings,
                 capacity: data.capacity,
             }))
-            .sort((a, b) => b.occupancy - a.occupancy)
+            .sort((a, b) => b.bookings - a.bookings)
             .slice(0, 10);
 
         const averageOccupancy =
             topRoutes.length > 0
                 ? topRoutes.reduce((sum, r) => sum + r.occupancy, 0) / topRoutes.length
                 : 0;
+
+        // ============================================
+        // ADDITIONAL ADVANCED METRICS FOR MANAGER
+        // ============================================
+
+        // 1. Revenue by Airline
+        const paymentsForAirline = await prisma.payment.findMany({
+            where: { paymentStatus: 'paid' },
+            include: {
+                booking: {
+                    include: {
+                        flight: {
+                            include: {
+                                airline: {
+                                    select: { name: true }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const airlineRevenueMap: { [key: string]: number } = {};
+        paymentsForAirline.forEach((p) => {
+            const name = p.booking.flight.airline.name;
+            airlineRevenueMap[name] = (airlineRevenueMap[name] || 0) + Number(p.amount);
+        });
+
+        const revenueByAirline = Object.entries(airlineRevenueMap).map(([name, revenue]) => ({
+            name,
+            revenue,
+        }));
+
+        // 2. Occupancy by Seat Class
+        const passengersWithSeats = await prisma.passenger.findMany({
+            where: {
+                booking: {
+                    status: { in: ['confirmed', 'used'] }
+                }
+            },
+            include: {
+                seat: {
+                    select: { class: true }
+                }
+            }
+        });
+
+        const classBookingsMap = { economy: 0, business: 0, first: 0 };
+        passengersWithSeats.forEach((p) => {
+            if (p.seat) {
+                const cls = p.seat.class;
+                if (cls === 'economy') classBookingsMap.economy++;
+                else if (cls === 'business') classBookingsMap.business++;
+                else if (cls === 'first') classBookingsMap.first++;
+            }
+        });
+
+        const totalClassBookings = classBookingsMap.economy + classBookingsMap.business + classBookingsMap.first;
+        const occupancyByClass = [
+            { class: 'Economy', count: classBookingsMap.economy, percentage: totalClassBookings > 0 ? (classBookingsMap.economy / totalClassBookings) * 100 : 0 },
+            { class: 'Business', count: classBookingsMap.business, percentage: totalClassBookings > 0 ? (classBookingsMap.business / totalClassBookings) * 100 : 0 },
+            { class: 'First Class', count: classBookingsMap.first, percentage: totalClassBookings > 0 ? (classBookingsMap.first / totalClassBookings) * 100 : 0 },
+        ];
 
         // ============================================
         // TICKET STATUS ANALYTICS
@@ -152,6 +216,8 @@ export async function GET(request: NextRequest) {
                 usedRevenue,
                 conversionRate,
             },
+            revenueByAirline,
+            occupancyByClass,
         });
     } catch (error: any) {
         console.error('Manager analytics error:', error);

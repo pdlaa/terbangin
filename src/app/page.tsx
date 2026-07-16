@@ -81,16 +81,20 @@ export default function Home() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
                         {[
-                            { city: 'Bali', country: 'Indonesia', price: 'Rp 850.000', emoji: '🏝️', color: 'from-cyan/20 to-sky/20' },
-                            { city: 'Tokyo', country: 'Jepang', price: 'Rp 4.500.000', emoji: '🗼', color: 'from-pink/20 to-rose/20' },
-                            { city: 'Seoul', country: 'Korea', price: 'Rp 3.800.000', emoji: '🇰🇷', color: 'from-blue/20 to-indigo/20' },
-                            { city: 'Singapura', country: 'Singapura', price: 'Rp 1.200.000', emoji: '🦁', color: 'from-red/20 to-orange/20' },
-                            { city: 'Bangkok', country: 'Thailand', price: 'Rp 1.500.000', emoji: '', color: 'from-yellow/20 to-amber/20' },
-                            { city: 'Melbourne', country: 'Australia', price: 'Rp 5.200.000', emoji: '🦘', color: 'from-green/20 to-emerald/20' },
+                            { city: 'Bali', country: 'Indonesia', price: 'Rp 850.000', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80' },
+                            { city: 'Tokyo', country: 'Jepang', price: 'Rp 4.500.000', image: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80' },
+                            { city: 'Seoul', country: 'Korea', price: 'Rp 3.800.000', image: 'https://images.unsplash.com/photo-1538669715515-5c37987a7194?auto=format&fit=crop&w=600&q=80' },
+                            { city: 'Singapura', country: 'Singapura', price: 'Rp 1.200.000', image: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=600&q=80' },
+                            { city: 'Bangkok', country: 'Thailand', price: 'Rp 1.500.000', image: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=600&q=80' },
+                            { city: 'Melbourne', country: 'Australia', price: 'Rp 5.200.000', image: 'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=600&q=80' },
                         ].map((dest, i) => (
                             <GlassCard key={i} hover className="p-6 group cursor-pointer" delay={i * 100}>
-                                <div className={`h-48 rounded-2xl bg-gradient-to-br ${dest.color} flex items-center justify-center mb-4 group-hover:scale-105 transition-transform duration-500`}>
-                                    <span className="text-7xl">{dest.emoji}</span>
+                                <div className="h-48 rounded-2xl overflow-hidden mb-4 group-hover:scale-105 transition-transform duration-500 relative">
+                                    <img
+                                        src={dest.image}
+                                        alt={dest.city}
+                                        className="w-full h-full object-cover"
+                                    />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div>

@@ -51,9 +51,9 @@ const emptyPassenger = (): PassengerFormData => ({
     passportNumber: '',
 });
 
-function classMultiplier(seatClass?: string) {
-    if (seatClass === 'business') return 1.5;
-    if (seatClass === 'first') return 2;
+function classMultiplier(seatClass?: string, flight?: any) {
+    if (seatClass === 'business') return Number(flight?.priceMultiplierBusiness || 1.5);
+    if (seatClass === 'first') return Number(flight?.priceMultiplierFirst || 2);
     return 1;
 }
 
@@ -155,7 +155,7 @@ function BookingContent() {
     const seatById = (id: string) => seats.find((s) => s.id === id);
 
     const totalPrice = flight
-        ? selectedSeats.reduce((sum, seatId) => sum + Number(flight.price) * classMultiplier(seatById(seatId)?.class), 0)
+        ? selectedSeats.reduce((sum, seatId) => sum + Number(flight.price) * classMultiplier(seatById(seatId)?.class, flight), 0)
         : 0;
 
     const validateForm = (): string | null => {

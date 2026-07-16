@@ -152,6 +152,8 @@ model Flight {
   departureTime      DateTime   @map("departure_time")
   arrivalTime        DateTime   @map("arrival_time")
   price              Decimal    @db.Decimal(12, 2) @map("price")
+  priceMultiplierBusiness Decimal? @db.Decimal(4, 2) @map("price_multiplier_business")
+  priceMultiplierFirst    Decimal? @db.Decimal(4, 2) @map("price_multiplier_first")
   availableSeats     Int        @map("available_seats")
   status             String     @default("scheduled") @map("status")
   duration           Int?       @map("duration")

@@ -45,11 +45,6 @@ export async function processPaymentNotification(params: PaymentUpdateParams): P
     const failed = ['deny', 'cancel', 'expire', 'failure'].includes(transactionStatus);
 
     if (success) {
-        if (booking.expiresAt < new Date() && booking.status === 'pending') {
-            await cancelBookingAndReleaseSeats(booking.id);
-            return { action: 'cancelled', bookingId: booking.id.toString() };
-        }
-
         await confirmBookingPayment({
             bookingId: booking.id,
             transactionId: transactionId || orderId,

@@ -34,6 +34,22 @@ export default function Navbar() {
                             <div className="w-24 h-9 rounded-xl bg-white/40 animate-pulse" />
                         ) : user ? (
                             <>
+                                {['admin', 'staff'].includes(user.role) && (
+                                    <Link
+                                        href="/admin/dashboard"
+                                        className="hidden sm:block text-sm font-semibold text-indigo-500 hover:text-indigo-600 transition-colors mr-2"
+                                    >
+                                        Dashboard Admin
+                                    </Link>
+                                )}
+                                {user.role === 'manager' && (
+                                    <Link
+                                        href="/manager/dashboard"
+                                        className="hidden sm:block text-sm font-semibold text-sky hover:text-sky-dark transition-colors mr-2"
+                                    >
+                                        Dashboard Manager
+                                    </Link>
+                                )}
                                 <Link
                                     href="/customer/tickets"
                                     className="hidden sm:block text-sm font-semibold text-sky hover:text-sky-dark transition-colors"

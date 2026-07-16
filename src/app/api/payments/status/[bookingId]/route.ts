@@ -53,15 +53,6 @@ export async function POST(
             });
         }
 
-        if (booking.expiresAt < new Date()) {
-            await cancelBookingAndReleaseSeats(booking.id);
-            return NextResponse.json({
-                bookingStatus: 'cancelled',
-                paymentStatus: 'failed',
-                message: 'Batas waktu pembayaran telah habis',
-            });
-        }
-
         const midtransStatus = await getTransactionStatus(booking.bookingCode);
 
         if (isPaymentSuccess(midtransStatus.transaction_status, midtransStatus.fraud_status)) {
@@ -77,6 +68,30 @@ export async function POST(
                 bookingStatus: result.action === 'confirmed' ? 'confirmed' : booking.status,
                 paymentStatus: result.action === 'confirmed' ? 'paid' : 'pending',
                 message: 'Pembayaran berhasil diverifikasi',
+            });
+        }
+
+        if (isPaymentFailed(midtransStatus.transaction_status)) {
+            await processPaymentNotification({
+                orderId: midtransStatus.order_id,
+                transactionStatus: midtransStatus.transaction_status,
+                transactionId: midtransStatus.transaction_id,
+                paymentMethod: midtransStatus.payment_type,
+            });
+
+            return NextResponse.json({
+                bookingStatus: 'cancelled',
+                paymentStatus: 'failed',
+                message: 'Pembayaran gagal atau kadaluarsa',
+            });
+        }
+
+        if (booking.expiresAt < new Date()) {
+            await cancelBookingAndReleaseSeats(booking.id);
+            return NextResponse.json({
+                bookingStatus: 'cancelled',
+                paymentStatus: 'failed',
+                message: 'Batas waktu pembayaran telah habis',
             });
         }
 

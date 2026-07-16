@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { fetchDestinationImageUrl } from '../src/services/image/destination.ts';
 
 const prisma = new PrismaClient();
 

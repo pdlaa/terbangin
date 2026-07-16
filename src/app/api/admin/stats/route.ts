@@ -9,8 +9,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const isAdmin = ['admin', 'manager'].includes(session.role);
-        if (!isAdmin) {
+        const isAllowed = ['admin', 'staff'].includes(session.role);
+        if (!isAllowed) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

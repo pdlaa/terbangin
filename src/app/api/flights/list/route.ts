@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/session';
+import { serializeBigInt } from '@/utils/serialize';
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,6 +16,9 @@ export async function GET(request: NextRequest) {
 
         const flights = await prisma.flight.findMany({
             include: {
+                airline: {
+                    select: { name: true, code: true },
+                },
                 departureAirport: {
                     select: { iataCode: true, city: true },
                 },
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
                     select: { iataCode: true, city: true },
                 },
                 airplane: {
-                    select: { capacity: true },
+                    select: { model: true, capacity: true },
                 },
                 _count: {
                     select: {
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
             orderBy: { departureTime: 'desc' },
         });
 
-        return NextResponse.json({ flights });
+        return NextResponse.json({ flights: serializeBigInt(flights) });
     } catch (error: any) {
         console.error('Error fetching flights:', error);
         return NextResponse.json(
