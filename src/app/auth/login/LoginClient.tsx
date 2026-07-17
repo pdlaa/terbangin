@@ -1,12 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ReCAPTCHA from 'react-google-recaptcha';
 import toast, { Toaster } from 'react-hot-toast';
 
 import { useAuth } from '@/context/auth-context';
+
+function getDashboardUrl(role: string): string {
+    switch (role) {
+        case 'admin': return '/admin/dashboard';
+        case 'staff': return '/staff/dashboard';
+        case 'manager': return '/manager/dashboard';
+        default: return '/';
+    }
+}
 
 export default function LoginClient() {
     const router = useRouter();
@@ -16,10 +25,20 @@ export default function LoginClient() {
     const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    const redirectTo = searchParams.get('redirect') || '/';
+    // Jika ada query param redirect, gunakan itu. Jika tidak, arahkan ke dashboard sesuai role.
+    const forcedRedirect = searchParams.get('redirect');
+
+    useEffect(() => {
+        if (user) {
+            const target = forcedRedirect || getDashboardUrl(user.role);
+            // Gunakan window.location agar benar-benar pindah halaman, bukan client-side redirect
+            if (typeof window !== 'undefined') {
+                window.location.href = target;
+            }
+        }
+    }, [user, forcedRedirect]);
 
     if (user) {
-        router.push(redirectTo);
         return null;
     }
 
@@ -47,7 +66,11 @@ export default function LoginClient() {
 
             login(data.user);
             toast.success('Login berhasil!');
-            router.push(redirectTo);
+            const target = forcedRedirect || getDashboardUrl(data.user.role);
+            // Redirect penuh agar langsung ke halaman tujuan tanpa flash landing page
+            if (typeof window !== 'undefined') {
+                window.location.href = target;
+            }
         } catch (error: any) {
             toast.error(error?.message || 'Login gagal');
             setRecaptchaToken(null);

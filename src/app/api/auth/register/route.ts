@@ -3,19 +3,21 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, generateVerificationToken } from '@/lib/auth';
 import { sendVerificationEmail } from '@/services/mail/mailer';
 import { verifyRecaptcha } from '@/services/recaptcha/verify';
+import { registerSchema } from '@/lib/validations/auth';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, email, password, recaptchaToken } = body;
-
-        if (!name || !email || !password || !recaptchaToken) {
-            return NextResponse.json({ error: 'Semua field wajib diisi' }, { status: 400 });
+        const parsed = registerSchema.safeParse(body);
+        if (!parsed.success) {
+            const firstIssue = parsed.error.issues[0];
+            return NextResponse.json(
+                { error: firstIssue?.message || 'Data registrasi tidak valid' },
+                { status: 400 }
+            );
         }
 
-        if (password.length < 8) {
-            return NextResponse.json({ error: 'Password minimal 8 karakter' }, { status: 400 });
-        }
+        const { name, email, password, recaptchaToken } = parsed.data;
 
         const isHuman = await verifyRecaptcha(recaptchaToken);
         if (!isHuman) {

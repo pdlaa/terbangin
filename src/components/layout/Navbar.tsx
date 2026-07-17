@@ -1,15 +1,26 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 
 export default function Navbar() {
     const { user, loading, logout } = useAuth();
+    const pathname = usePathname();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const isLandingPage = pathname === '/';
+    const isBackOfficeUser = user && ['admin', 'staff', 'manager'].includes(user.role);
 
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
             <div className="max-w-7xl mx-auto">
-                <div className="glass-card px-6 py-3 flex items-center justify-between">
+                <div className="glass-card px-6 py-3 flex items-center justify-between shadow-glass">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky to-cyan flex items-center justify-center shadow-glow group-hover:scale-110 transition-transform duration-300">
@@ -22,40 +33,43 @@ export default function Navbar() {
 
                     {/* Navigation Links */}
                     <div className="hidden md:flex items-center gap-8">
-                        <a href="#destinations" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Destinasi</a>
-                        <a href="#airlines" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Maskapai</a>
-                        <a href="#promo" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Promo</a>
-                        <a href="#testimonials" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Testimoni</a>
+                        {/* Only show landing page links if on the landing page */}
+                        {isLandingPage && (
+                            <>
+                                <a href="#destinations" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Destinasi</a>
+                                <a href="#airlines" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Maskapai</a>
+                                <a href="#promo" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Promo</a>
+                                <a href="#testimonials" className="text-sm font-medium text-foreground/70 hover:text-sky transition-colors">Testimoni</a>
+                            </>
+                        )}
                     </div>
 
                     {/* Auth Buttons */}
                     <div className="flex items-center gap-3">
-                        {loading ? (
+                        {!mounted || loading ? (
                             <div className="w-24 h-9 rounded-xl bg-white/40 animate-pulse" />
                         ) : user ? (
                             <>
-                                {['admin', 'staff'].includes(user.role) && (
+                                {/* Show dashboard quick link on navbar for back-office users */}
+                                {isBackOfficeUser && (
                                     <Link
-                                        href="/admin/dashboard"
+                                        href={user.role === 'manager' ? '/manager/dashboard' : '/admin/dashboard'}
                                         className="hidden sm:block text-sm font-semibold text-indigo-500 hover:text-indigo-600 transition-colors mr-2"
                                     >
-                                        Dashboard Admin
+                                        Dashboard
                                     </Link>
                                 )}
-                                {user.role === 'manager' && (
+
+                                {/* Show Tiket Saya for customer role */}
+                                {user.role === 'customer' && (
                                     <Link
-                                        href="/manager/dashboard"
+                                        href="/customer/tickets"
                                         className="hidden sm:block text-sm font-semibold text-sky hover:text-sky-dark transition-colors mr-2"
                                     >
-                                        Dashboard Manager
+                                        Tiket Saya
                                     </Link>
                                 )}
-                                <Link
-                                    href="/customer/tickets"
-                                    className="hidden sm:block text-sm font-semibold text-sky hover:text-sky-dark transition-colors"
-                                >
-                                    Tiket Saya
-                                </Link>
+
                                 <span className="hidden sm:block text-sm font-semibold text-foreground/80">
                                     Hai, {user.name.split(' ')[0]}
                                 </span>

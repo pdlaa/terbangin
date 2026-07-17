@@ -5,8 +5,24 @@ import FlightSearch from '@/components/common/FlightSearch';
 import GlassCard from '@/components/ui/GlassCard';
 import Link from 'next/link';
 import { getAvatarUrl } from '@/lib/avatar';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { verifyToken } from '@/lib/auth';
 
-export default function Home() {
+export default async function Home() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (token) {
+        const payload = verifyToken(token);
+        if (payload) {
+            if (payload.role === 'admin' || payload.role === 'staff') {
+                redirect('/admin/dashboard');
+            } else if (payload.role === 'manager') {
+                redirect('/manager/dashboard');
+            }
+        }
+    }
+
     return (
         <main className="min-h-screen relative">
             <Navbar />

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import Navbar from '@/components/layout/Navbar';
+import AdminNavbar from '@/components/layout/AdminNavbar';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 
@@ -254,7 +254,7 @@ function FlightsContent() {
 
     return (
         <div className="min-h-screen sky-gradient">
-            <Navbar />
+            <AdminNavbar />
             <div className="pt-24 pb-12 px-6">
                 <div className="max-w-7xl mx-auto">
                     {/* Back Link */}

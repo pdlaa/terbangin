@@ -6,7 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/layout/Navbar';
 import FlightSummary from '@/components/booking/FlightSummary';
 import PassengerForm, { PassengerFormData } from '@/components/booking/PassengerForm';
-import SeatSelection from '@/components/booking/SeatSelection';
+import SeatPicker from '@/components/booking/SeatPicker';
 import { useAuth } from '@/context/auth-context';
 
 interface Flight {
@@ -352,11 +352,11 @@ function BookingContent() {
                             </div>
 
                             <div className="space-y-6">
-                                <SeatSelection
-                                    seats={seats}
+                                <SeatPicker
+                                    flightId={flightId}
                                     selectedSeats={selectedSeats}
                                     maxSeats={passengerCount}
-                                    onToggleSeat={handleToggleSeat}
+                                    onSeatToggle={(seatId, seatNumber, seatClass) => handleToggleSeat(seatId)}
                                 />
 
                                 <div className="glass-card p-6 sticky top-24">

@@ -2,6 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AirportAutocomplete from './AirportAutocomplete';
+
+interface Airport {
+    id: string;
+    iataCode: string;
+    name: string;
+    city: string;
+    country: string;
+    imageUrl: string | null;
+}
 
 export default function FlightSearch() {
     const router = useRouter();
@@ -12,13 +22,15 @@ export default function FlightSearch() {
         passengers: '1',
         class: 'economy',
     });
+    const [fromAirport, setFromAirport] = useState<Airport | null>(null);
+    const [toAirport, setToAirport] = useState<Airport | null>(null);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        // Nanti akan diarahkan ke halaman pencarian flights
+        if (!fromAirport || !toAirport) return;
         const params = new URLSearchParams({
-            from: formData.from,
-            to: formData.to,
+            from: fromAirport.iataCode,
+            to: toAirport.iataCode,
             date: formData.date,
             passengers: formData.passengers,
             class: formData.class,
@@ -31,38 +43,46 @@ export default function FlightSearch() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* From */}
                 <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-foreground/60 mb-2 uppercase tracking-wider">Dari</label>
-                    <div className="relative">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-sky" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Kota asal"
-                            value={formData.from}
-                            onChange={(e) => setFormData({ ...formData, from: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky/30 focus:border-sky transition-all"
-                        />
-                    </div>
+                    <AirportAutocomplete
+                        label="Dari"
+                        placeholder="Kota asal"
+                        icon={
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                        }
+                        iconColor="#2563EB"
+                        focusColor="sky"
+                        value={formData.from}
+                        onChange={(airport) => {
+                            setFromAirport(airport);
+                            if (airport) setFormData({ ...formData, from: airport.iataCode });
+                        }}
+                        exclude={toAirport?.iataCode}
+                    />
                 </div>
 
                 {/* To */}
                 <div className="lg:col-span-1">
-                    <label className="block text-xs font-semibold text-foreground/60 mb-2 uppercase tracking-wider">Ke</label>
-                    <div className="relative">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="Kota tujuan"
-                            value={formData.to}
-                            onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-                            className="w-full pl-10 pr-4 py-3 bg-white/50 border border-white/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan/30 focus:border-cyan transition-all"
-                        />
-                    </div>
+                    <AirportAutocomplete
+                        label="Ke"
+                        placeholder="Kota tujuan"
+                        icon={
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                        }
+                        iconColor="#06B6D4"
+                        focusColor="cyan"
+                        value={formData.to}
+                        onChange={(airport) => {
+                            setToAirport(airport);
+                            if (airport) setFormData({ ...formData, to: airport.iataCode });
+                        }}
+                        exclude={fromAirport?.iataCode}
+                    />
                 </div>
 
                 {/* Date */}
@@ -109,7 +129,8 @@ export default function FlightSearch() {
                 <div className="lg:col-span-1 flex items-end">
                     <button
                         type="submit"
-                        className="w-full glass-button py-3 px-6 flex items-center justify-center gap-2 ripple"
+                        disabled={!fromAirport || !toAirport}
+                        className="w-full glass-button py-3 px-6 flex items-center justify-center gap-2 ripple disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             <circle cx="11" cy="11" r="8" />

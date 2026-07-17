@@ -7,20 +7,30 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🌱 Starting seed...');
 
-    // 1. Create Admin User
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.user.upsert({
-        where: { email: 'admin@terbangin.com' },
-        update: {},
-        create: {
-            email: 'admin@terbangin.com',
-            name: 'Admin Terbangin',
-            password: hashedPassword,
-            role: 'admin',
-            emailVerifiedAt: new Date(),
-        },
-    });
-    console.log('✅ Created admin user');
+    // 1. Create Users (Admin, Manager, Staff, Customer)
+    const adminPassword = await bcrypt.hash('admin123', 10);
+    const managerPassword = await bcrypt.hash('manager123', 10);
+    const staffPassword = await bcrypt.hash('staff123', 10);
+    const customerPassword = await bcrypt.hash('customer123', 10);
+
+    const users = [
+        { email: 'admin@terbangin.com', name: 'Admin Terbangin', password: adminPassword, role: 'admin' as const },
+        { email: 'manager@terbangin.com', name: 'Manager Terbangin', password: managerPassword, role: 'manager' as const },
+        { email: 'staff@terbangin.com', name: 'Staff Terbangin', password: staffPassword, role: 'staff' as const },
+        { email: 'customer@terbangin.com', name: 'Customer Test', password: customerPassword, role: 'customer' as const },
+    ];
+
+    for (const user of users) {
+        await prisma.user.upsert({
+            where: { email: user.email },
+            update: {},
+            create: {
+                ...user,
+                emailVerifiedAt: new Date(),
+            },
+        });
+    }
+    console.log(`✅ Created ${users.length} users (admin, manager, staff, customer)`);
 
     // 2. Create Airports
     const airports = [

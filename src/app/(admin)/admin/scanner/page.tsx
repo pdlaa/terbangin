@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import Navbar from '@/components/layout/Navbar';
+import AdminNavbar from '@/components/layout/AdminNavbar';
 import { useAuth } from '@/context/auth-context';
 import jsQR from 'jsqr';
 
@@ -187,7 +187,7 @@ function ScannerContent() {
 
     return (
         <div className="min-h-screen sky-gradient">
-            <Navbar />
+<AdminNavbar />
             <div className="pt-24 pb-12 px-6">
                 <div className="max-w-2xl mx-auto">
                     <h1 className="text-4xl font-bold mb-2 text-center">

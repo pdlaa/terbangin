@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import Navbar from '@/components/layout/Navbar';
+import AdminNavbar from '@/components/layout/AdminNavbar';
 import { useAuth } from '@/context/auth-context';
 import {
     Chart as ChartJS,
@@ -222,7 +222,7 @@ function ManagerDashboardContent() {
             `}</style>
 
             <div className="no-print">
-                <Navbar />
+                <AdminNavbar />
             </div>
 
             <div className="pt-24 px-6">
