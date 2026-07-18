@@ -44,26 +44,59 @@ export default function SeatPicker({ flightId, selectedSeats, onSeatToggle, maxS
 
     const filteredSeats = seats.filter((s) => s.class === activeClass);
     const seatsByRow: { [key: string]: Seat[] } = {};
+
     filteredSeats.forEach((seat) => {
-        const row = seat.seatNumber.replace(/[A-Z]/g, '');
+        const row = seat.seatNumber.replace(/[^0-9]/g, '');
         if (!seatsByRow[row]) seatsByRow[row] = [];
         seatsByRow[row].push(seat);
     });
 
-    const sortedRows = Object.keys(seatsByRow)
-        .sort((a, b) => parseInt(a) - parseInt(b))
-        .slice(0, 10);
+    const sortedRows = Object.keys(seatsByRow).sort((a, b) => parseInt(a) - parseInt(b));
 
-    const seatLabel = (num: string) => num.replace(/[0-9]/g, '');
+    const getSeatLetter = (num: string) => num.replace(/[0-9]/g, '');
 
-    const getClassColor = (cls: string) => {
+    const getClassMeta = (cls: string) => {
         switch (cls) {
-            case 'economy': return { bg: 'bg-sky-500', selected: 'bg-sky-500', border: 'border-sky-300', text: 'text-sky-700' };
-            case 'business': return { bg: 'bg-amber-500', selected: 'bg-amber-500', border: 'border-amber-300', text: 'text-amber-700' };
-            case 'first': return { bg: 'bg-purple-500', selected: 'bg-purple-500', border: 'border-purple-300', text: 'text-purple-700' };
-            default: return { bg: 'bg-gray-500', selected: 'bg-gray-500', border: 'border-gray-300', text: 'text-gray-700' };
+            case 'economy':
+                return {
+                    icon: '🛫',
+                    label: 'Ekonomi',
+                    button: 'bg-sky-500 text-white',
+                    chip: 'bg-sky-100 text-sky-700',
+                    selected: 'bg-sky-500 text-white border-sky-300',
+                    available: 'bg-white/90 text-foreground/70 border-sky-200 hover:bg-sky-50',
+                };
+            case 'business':
+                return {
+                    icon: '💼',
+                    label: 'Bisnis',
+                    button: 'bg-amber-500 text-white',
+                    chip: 'bg-amber-100 text-amber-700',
+                    selected: 'bg-amber-500 text-white border-amber-300',
+                    available: 'bg-white/90 text-foreground/70 border-amber-200 hover:bg-amber-50',
+                };
+            case 'first':
+                return {
+                    icon: '👑',
+                    label: 'First',
+                    button: 'bg-purple-500 text-white',
+                    chip: 'bg-purple-100 text-purple-700',
+                    selected: 'bg-purple-500 text-white border-purple-300',
+                    available: 'bg-white/90 text-foreground/70 border-purple-200 hover:bg-purple-50',
+                };
+            default:
+                return {
+                    icon: '🎟️',
+                    label: 'Lainnya',
+                    button: 'bg-slate-500 text-white',
+                    chip: 'bg-slate-100 text-slate-700',
+                    selected: 'bg-slate-500 text-white border-slate-300',
+                    available: 'bg-white/90 text-foreground/70 border-slate-200 hover:bg-slate-50',
+                };
         }
     };
+
+    const selectedSeatInfo = seats.filter((seat) => selectedSeats.includes(seat.id));
 
     const handleSeatClick = (seat: Seat) => {
         if (!seat.isAvailable) return;
@@ -96,26 +129,25 @@ export default function SeatPicker({ flightId, selectedSeats, onSeatToggle, maxS
     }
 
     return (
-        <div className="space-y-6">
-            {/* Class Selector */}
-            <div className="flex gap-2">
+        <div className="space-y-5">
+            <div className="flex flex-wrap gap-2">
                 {['economy', 'business', 'first'].map((cls) => {
                     const count = seats.filter((s) => s.class === cls).length;
                     const available = seats.filter((s) => s.class === cls && s.isAvailable).length;
-                    const colors = getClassColor(cls);
+                    const meta = getClassMeta(cls);
                     return (
                         <button
                             key={cls}
                             onClick={() => setActiveClass(cls)}
-                            className={`flex-1 px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
+                            className={`flex-1 min-w-[120px] px-4 py-3 rounded-2xl text-sm font-semibold transition-all border ${
                                 activeClass === cls
-                                    ? `${colors.bg} text-white shadow-lg scale-105 border-transparent`
-                                    : 'bg-white/50 text-foreground/70 border-white/60 hover:bg-white/80'
+                                    ? `${meta.button} shadow-lg scale-[1.02] border-transparent`
+                                    : 'bg-white/60 text-foreground/70 border-white/60 hover:bg-white/80'
                             }`}
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <span>{cls === 'economy' ? '🛫' : cls === 'business' ? '💼' : '👑'}</span>
-                                <span className="font-semibold capitalize">{cls}</span>
+                                <span>{meta.icon}</span>
+                                <span className="capitalize">{meta.label}</span>
                             </div>
                             <div className="text-xs mt-1 opacity-80">{available}/{count} tersedia</div>
                         </button>
@@ -123,105 +155,121 @@ export default function SeatPicker({ flightId, selectedSeats, onSeatToggle, maxS
                 })}
             </div>
 
-            {/* Aircraft Cabin Visual */}
-            <div className="glass-card p-6 md:p-8 rounded-3xl border border-white/60">
-                {/* Cockpit */}
-                <div className="flex justify-center mb-8">
-                    <div className="w-24 h-8 rounded-t-full bg-gradient-to-r from-sky/30 to-cyan/30 border border-white/40 flex items-center justify-center text-xs text-foreground/50 font-medium">
+            <div className="glass-card rounded-3xl border border-white/60 p-5 md:p-7">
+                <div className="flex items-center justify-between gap-3 mb-5">
+                    <div>
+                        <h3 className="font-bold text-lg">Denah Kursi</h3>
+                        <p className="text-xs text-foreground/60 mt-1">Pilih sampai {maxSeats} kursi untuk penumpang</p>
+                    </div>
+                    <div className="rounded-full bg-sky/10 px-3 py-1 text-xs font-semibold text-sky">
+                        {selectedSeats.length}/{maxSeats} dipilih
+                    </div>
+                </div>
+
+                <div className="flex justify-center mb-6">
+                    <div className="w-24 h-8 rounded-t-full bg-gradient-to-r from-sky/20 to-cyan/20 border border-white/60 flex items-center justify-center text-[11px] font-semibold text-foreground/60">
                         ✈️ Kokpit
                     </div>
                 </div>
 
-                {/* Seat Grid */}
-                <div className="max-w-md mx-auto space-y-2">
-                    {sortedRows.map((rowNum) => {
-                        const rowSeats = seatsByRow[rowNum].sort((a, b) =>
-                            seatLabel(a.seatNumber).localeCompare(seatLabel(b.seatNumber))
-                        );
-                        return (
-                            <div key={rowNum} className="flex items-center gap-1.5">
-                                {/* Row Number */}
-                                <div className="w-6 text-xs font-mono text-foreground/40 text-right mr-1">{rowNum}</div>
+                <div className="max-w-xl mx-auto border border-white/40 rounded-3xl bg-white/25 p-3 md:p-4 overflow-x-auto">
+                    <div className="min-w-[360px] space-y-2">
+                        {sortedRows.map((rowNum) => {
+                            const rowSeats = seatsByRow[rowNum].sort((a, b) =>
+                                getSeatLetter(a.seatNumber).localeCompare(getSeatLetter(b.seatNumber))
+                            );
+                            const leftSeats = rowSeats.slice(0, Math.ceil(rowSeats.length / 2));
+                            const rightSeats = rowSeats.slice(Math.ceil(rowSeats.length / 2));
 
-                                {/* Left seats (A, B) */}
-                                <div className="flex-1 flex justify-end gap-1.5">
-                                    {rowSeats.slice(0, Math.ceil(rowSeats.length / 2)).map((seat) => {
-                                        const isSelected = selectedSeats.includes(seat.id);
-                                        const colors = getClassColor(seat.class);
-                                        return (
-                                            <button
-                                                key={seat.id}
-                                                disabled={!seat.isAvailable && !isSelected}
-                                                onClick={() => handleSeatClick(seat)}
-                                                title={`${seat.seatNumber} - ${seat.class}${!seat.isAvailable ? ' (Terisi)' : ''}`}
-                                                className={`
-                                                    w-9 h-9 md:w-10 md:h-10 rounded-lg text-xs font-bold transition-all duration-200
-                                                    ${!seat.isAvailable && !isSelected
-                                                        ? 'bg-red-100 text-red-400 cursor-not-allowed border border-red-200'
-                                                        : isSelected
-                                                            ? `${colors.selected} text-white shadow-md scale-110 border-2 border-white`
-                                                            : 'bg-white/80 text-foreground/70 border-2 border-gray-200 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md cursor-pointer'
-                                                    }
-                                                    ${selectedSeats.length >= maxSeats && !isSelected && seat.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}
-                                                `}
-                                            >
-                                                {seatLabel(seat.seatNumber)}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                            return (
+                                <div key={rowNum} className="flex items-center gap-2">
+                                    <div className="w-6 text-xs font-mono text-foreground/40 text-right shrink-0">{rowNum}</div>
 
-                                {/* Aisle */}
-                                <div className="w-4 md:w-6 flex justify-center">
-                                    <div className="w-1.5 h-full min-h-[2.25rem] bg-white/40 rounded-full" />
-                                </div>
+                                    <div className="flex-1 flex justify-end gap-1.5">
+                                        {leftSeats.map((seat) => {
+                                            const isSelected = selectedSeats.includes(seat.id);
+                                            const meta = getClassMeta(seat.class);
+                                            const isBlocked = !seat.isAvailable && !isSelected;
+                                            const isLimitReached = selectedSeats.length >= maxSeats && !isSelected && seat.isAvailable;
 
-                                {/* Right seats (C, D, ...) */}
-                                <div className="flex-1 flex justify-start gap-1.5">
-                                    {rowSeats.slice(Math.ceil(rowSeats.length / 2)).map((seat) => {
-                                        const isSelected = selectedSeats.includes(seat.id);
-                                        const colors = getClassColor(seat.class);
-                                        return (
-                                            <button
-                                                key={seat.id}
-                                                disabled={!seat.isAvailable && !isSelected}
-                                                onClick={() => handleSeatClick(seat)}
-                                                title={`${seat.seatNumber} - ${seat.class}${!seat.isAvailable ? ' (Terisi)' : ''}`}
-                                                className={`
-                                                    w-9 h-9 md:w-10 md:h-10 rounded-lg text-xs font-bold transition-all duration-200
-                                                    ${!seat.isAvailable && !isSelected
-                                                        ? 'bg-red-100 text-red-400 cursor-not-allowed border border-red-200'
-                                                        : isSelected
-                                                            ? `${colors.selected} text-white shadow-md scale-110 border-2 border-white`
-                                                            : 'bg-white/80 text-foreground/70 border-2 border-gray-200 hover:border-sky-300 hover:bg-sky-50 hover:shadow-md cursor-pointer'
-                                                    }
-                                                    ${selectedSeats.length >= maxSeats && !isSelected && seat.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}
-                                                `}
-                                            >
-                                                {seatLabel(seat.seatNumber)}
-                                            </button>
-                                        );
-                                    })}
+                                            return (
+                                                <button
+                                                    key={seat.id}
+                                                    type="button"
+                                                    disabled={isBlocked || isLimitReached}
+                                                    onClick={() => handleSeatClick(seat)}
+                                                    title={`${seat.seatNumber} - ${seat.class}${!seat.isAvailable ? ' (Terisi)' : ''}`}
+                                                    className={`w-10 h-10 rounded-xl text-xs font-bold border transition-all duration-200 ${
+                                                        isBlocked
+                                                            ? 'bg-red-100 text-red-400 cursor-not-allowed border-red-200'
+                                                            : isSelected
+                                                                ? meta.selected
+                                                                : isLimitReached
+                                                                    ? 'bg-white/40 text-foreground/40 cursor-not-allowed border-white/50'
+                                                                    : meta.available
+                                                    }`}
+                                                >
+                                                    {getSeatLetter(seat.seatNumber)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="w-5 md:w-7 flex justify-center shrink-0">
+                                        <div className="w-1.5 h-8 rounded-full bg-white/50" />
+                                    </div>
+
+                                    <div className="flex-1 flex justify-start gap-1.5">
+                                        {rightSeats.map((seat) => {
+                                            const isSelected = selectedSeats.includes(seat.id);
+                                            const meta = getClassMeta(seat.class);
+                                            const isBlocked = !seat.isAvailable && !isSelected;
+                                            const isLimitReached = selectedSeats.length >= maxSeats && !isSelected && seat.isAvailable;
+
+                                            return (
+                                                <button
+                                                    key={seat.id}
+                                                    type="button"
+                                                    disabled={isBlocked || isLimitReached}
+                                                    onClick={() => handleSeatClick(seat)}
+                                                    title={`${seat.seatNumber} - ${seat.class}${!seat.isAvailable ? ' (Terisi)' : ''}`}
+                                                    className={`w-10 h-10 rounded-xl text-xs font-bold border transition-all duration-200 ${
+                                                        isBlocked
+                                                            ? 'bg-red-100 text-red-400 cursor-not-allowed border-red-200'
+                                                            : isSelected
+                                                                ? meta.selected
+                                                                : isLimitReached
+                                                                    ? 'bg-white/40 text-foreground/40 cursor-not-allowed border-white/50'
+                                                                    : meta.available
+                                                    }`}
+                                                >
+                                                    {getSeatLetter(seat.seatNumber)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {/* Legend */}
-                <div className="flex justify-center gap-6 mt-8 pt-6 border-t border-white/20">
-                    <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded bg-white/80 border-2 border-gray-200" />
-                        <span className="text-xs text-foreground/60">Tersedia</span>
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-white/70 px-3 py-1 border border-white/60">Tersedia</span>
+                        <span className="rounded-full bg-sky-500 px-3 py-1 text-white">Dipilih</span>
+                        <span className="rounded-full bg-red-100 px-3 py-1 text-red-500">Terisi</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded bg-sky-500 border-2 border-sky-300" />
-                        <span className="text-xs text-foreground/60">Dipilih</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded bg-red-100 border-2 border-red-200" />
-                        <span className="text-xs text-foreground/60">Terisi</span>
-                    </div>
+
+                    {selectedSeatInfo.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                            {selectedSeatInfo.map((seat) => (
+                                <span key={seat.id} className={`rounded-full px-3 py-1 text-xs font-semibold ${getClassMeta(seat.class).chip}`}>
+                                    {seat.seatNumber}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

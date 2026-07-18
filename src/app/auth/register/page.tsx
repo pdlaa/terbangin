@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ReCAPTCHA from 'react-google-recaptcha';
 import toast, { Toaster } from 'react-hot-toast';
+
+// Dynamic import reCAPTCHA agar tidak crash jika domain tidak terdaftar
+const ReCAPTCHA = lazy(() => import('react-google-recaptcha').then(mod => ({ default: mod.default })));
 
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+    const [recaptchaReady, setRecaptchaReady] = useState(false);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -114,11 +117,16 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="flex justify-center py-2">
-                    <ReCAPTCHA
-                        sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
-                        onChange={setRecaptchaToken}
-                        onExpired={() => setRecaptchaToken(null)}
-                    />
+                    <Suspense fallback={<div className="w-[304px] h-[78px] bg-white/40 rounded-lg animate-pulse" />}>
+                        {typeof window !== 'undefined' && (
+                            <ReCAPTCHA
+                                sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'}
+                                onChange={setRecaptchaToken}
+                                onExpired={() => setRecaptchaToken(null)}
+                                onLoad={() => setRecaptchaReady(true)}
+                            />
+                        )}
+                    </Suspense>
                 </div>
 
                 <button

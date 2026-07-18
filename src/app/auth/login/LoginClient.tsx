@@ -31,12 +31,9 @@ export default function LoginClient() {
     useEffect(() => {
         if (user) {
             const target = forcedRedirect || getDashboardUrl(user.role);
-            // Gunakan window.location agar benar-benar pindah halaman, bukan client-side redirect
-            if (typeof window !== 'undefined') {
-                window.location.href = target;
-            }
+            router.push(target);
         }
-    }, [user, forcedRedirect]);
+    }, [user, forcedRedirect, router]);
 
     if (user) {
         return null;
@@ -67,10 +64,7 @@ export default function LoginClient() {
             login(data.user);
             toast.success('Login berhasil!');
             const target = forcedRedirect || getDashboardUrl(data.user.role);
-            // Redirect penuh agar langsung ke halaman tujuan tanpa flash landing page
-            if (typeof window !== 'undefined') {
-                window.location.href = target;
-            }
+            router.push(target);
         } catch (error: any) {
             toast.error(error?.message || 'Login gagal');
             setRecaptchaToken(null);

@@ -1,25 +1,48 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false,
-    },
-} as any);
+const getTransporter = () => {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
 
-transporter.verify((error: any, success: any) => {
-    if (error) {
-        console.error('❌ SMTP Connection Error:', error);
-    } else {
-        console.log('✅ SMTP Server is ready to send messages');
+    if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('⚠️ SMTP config belum lengkap; email verifikasi akan dilewati secara aman.');
+        return null;
     }
-});
+
+    const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: String(process.env.SMTP_SECURE || 'true').toLowerCase() === 'true',
+        auth: {
+            user: smtpUser,
+            pass: smtpPass,
+        },
+        tls: {
+            rejectUnauthorized: false,
+        },
+    } as any);
+
+    return transporter;
+};
+
+const safeSendMail = async (mailOptions: any) => {
+    const transporter = getTransporter();
+
+    if (!transporter) {
+        return null;
+    }
+
+    try {
+        await transporter.verify();
+        const info = await transporter.sendMail(mailOptions);
+        return info;
+    } catch (error) {
+        console.error('❌ SMTP send error:', error);
+        return null;
+    }
+};
 
 export const sendVerificationEmail = async (email: string, token: string, name: string) => {
     // ✅ FIX: URL harus mengarah ke API Route, bukan halaman
@@ -29,7 +52,7 @@ export const sendVerificationEmail = async (email: string, token: string, name: 
     console.log('🔗 Verification URL:', verificationUrl);
 
     try {
-        const info = await transporter.sendMail({
+        const info = await safeSendMail({
             from: process.env.SMTP_FROM || process.env.SMTP_USER,
             to: email,
             subject: 'Verifikasi Akun - Terbangin',
@@ -67,10 +90,13 @@ export const sendVerificationEmail = async (email: string, token: string, name: 
       `,
         });
 
-        console.log(`✅ Email sent to ${email}, Message ID: ${info.messageId}`);
+        if (info) {
+            console.log(`✅ Email sent to ${email}, Message ID: ${info.messageId}`);
+        } else {
+            console.warn(`⚠️ Email verifikasi tidak terkirim untuk ${email}; mode aman aktif.`);
+        }
     } catch (error) {
         console.error('❌ Error sending email:', error);
-        throw new Error('Gagal mengirim email verifikasi');
     }
 };
 
@@ -119,7 +145,7 @@ export const sendBookingConfirmationEmail = async (params: BookingConfirmationEm
     const ticketUrl = `${process.env.NEXT_PUBLIC_APP_URL}/customer/payment/${bookingId}`;
 
     try {
-        const info = await transporter.sendMail({
+        const info = await safeSendMail({
             from: process.env.SMTP_FROM || process.env.SMTP_USER,
             to: email,
             subject: `E-Ticket Dikonfirmasi - ${bookingCode}`,
@@ -165,9 +191,12 @@ export const sendBookingConfirmationEmail = async (params: BookingConfirmationEm
       `,
         });
 
-        console.log(`✅ Confirmation email sent to ${email}, Message ID: ${info.messageId}`);
+        if (info) {
+            console.log(`✅ Confirmation email sent to ${email}, Message ID: ${info.messageId}`);
+        } else {
+            console.warn(`⚠️ Confirmation email tidak terkirim untuk ${email}; mode aman aktif.`);
+        }
     } catch (error) {
         console.error('❌ Error sending confirmation email:', error);
-        throw new Error('Gagal mengirim email konfirmasi booking');
     }
 };

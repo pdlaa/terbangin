@@ -44,7 +44,6 @@
   ],
   "exclude": [
     "node_modules",
-    "prisma/seed.ts",
     "prisma/backfill-seats.ts",
     "prisma.config.ts"
   ]
