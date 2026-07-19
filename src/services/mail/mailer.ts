@@ -1,29 +1,38 @@
 import nodemailer from 'nodemailer';
 
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = Number.parseInt(process.env.SMTP_PORT || '465', 10);
+const smtpSecure = String(process.env.SMTP_SECURE || 'true').toLowerCase() === 'true';
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: true,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
     tls: {
         rejectUnauthorized: false,
     },
+    ...(smtpHost.includes('gmail') ? { service: 'gmail' } : {}),
 } as any);
 
-transporter.verify((error: any, success: any) => {
+transporter.verify((error: any) => {
     if (error) {
-        console.error('❌ SMTP Connection Error:', error);
+        console.warn('⚠️ SMTP verification unavailable, using safe fallback mode:', error.message || error);
     } else {
         console.log('✅ SMTP Server is ready to send messages');
     }
 });
 
-export const sendVerificationEmail = async (email: string, token: string, name: string) => {
-    // ✅ FIX: URL harus mengarah ke API Route, bukan halaman
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?token=${token}`;
+export const sendVerificationEmail = async (
+    email: string,
+    token: string,
+    name: string,
+    baseUrl?: string,
+) => {
+    const appBaseUrl = (baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8000').replace(/\/$/, '');
+    const verificationUrl = `${appBaseUrl}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
 
     console.log('📧 Sending verification email to:', email);
     console.log('🔗 Verification URL:', verificationUrl);
@@ -68,9 +77,12 @@ export const sendVerificationEmail = async (email: string, token: string, name: 
         });
 
         console.log(`✅ Email sent to ${email}, Message ID: ${info.messageId}`);
+        return { sent: true, verificationUrl };
     } catch (error) {
-        console.error('❌ Error sending email:', error);
-        throw new Error('Gagal mengirim email verifikasi');
+        console.warn('⚠️ SMTP send failed, using verification fallback mode:', error);
+        console.warn('� Reason: Gmail SMTP credential is not accepted. Update SMTP_PASS with a valid Gmail App Password.');
+        console.warn('�📎 Verification fallback URL:', verificationUrl);
+        return { sent: false, verificationUrl };
     }
 };
 

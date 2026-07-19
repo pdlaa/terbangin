@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { generateToken } from '@/lib/auth';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -40,12 +41,29 @@ export async function GET(request: Request) {
             },
         });
 
+        const authToken = generateToken({
+            userId: user.id.toString(),
+            email: user.email,
+            role: user.role,
+        });
+
         console.log(`✅ Email verified for user: ${user.email}`);
 
-        // 5. Redirect ke login dengan pesan sukses
-        return NextResponse.redirect(
-            new URL('/auth/login?verified=success', request.url)
+        const response = NextResponse.redirect(
+            new URL('/customer/flights?verified=success', request.url)
         );
+
+        response.cookies.set({
+            name: 'token',
+            value: authToken,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+            path: '/',
+        });
+
+        return response;
     } catch (error) {
         console.error('Email verification error:', error);
         return NextResponse.redirect(

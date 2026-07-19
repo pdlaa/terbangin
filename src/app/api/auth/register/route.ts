@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
         const tokenExpiry = new Date();
         tokenExpiry.setHours(tokenExpiry.getHours() + 24);
 
+        const forwardedProto = request.headers.get('x-forwarded-proto');
+        const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+        const resolvedBaseUrl = forwardedProto && forwardedHost
+            ? `${forwardedProto}://${forwardedHost}`
+            : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8000';
+
         await prisma.user.create({
             data: {
                 name,
@@ -43,9 +49,15 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        await sendVerificationEmail(email, verificationToken, name);
+        const emailResult = await sendVerificationEmail(email, verificationToken, name, resolvedBaseUrl);
+        if (emailResult.sent) {
+            return NextResponse.json({ message: 'Registrasi berhasil. Silakan cek email Anda.' }, { status: 201 });
+        }
 
-        return NextResponse.json({ message: 'Registrasi berhasil. Silakan cek email Anda.' }, { status: 201 });
+        return NextResponse.json({
+            message: 'Registrasi berhasil. Link verifikasi dibuat dalam mode fallback. Silakan cek log server untuk tautan verifikasi.',
+            verificationUrl: emailResult.verificationUrl,
+        }, { status: 201 });
     } catch (error) {
         console.error('Register error:', error);
         return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 });

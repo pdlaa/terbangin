@@ -18,19 +18,20 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks:
+      - terbangin-net
 
-  web:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: terbangin_web
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DATABASE_URL: mysql://root:root@db:3306/db_maskapai
-      NEXT_PUBLIC_APP_URL: http://localhost
-      API_URL: http://localhost/api
+      NEXT_PUBLIC_APP_URL: http://localhost:8080
+      API_URL: http://localhost:8080/api
       PORT: 3000
       HOSTNAME: 0.0.0.0
       NODE_ENV: production
@@ -39,17 +40,25 @@ services:
         condition: service_healthy
     expose:
       - "3000"
+    networks:
+      - terbangin-net
 
   nginx:
     image: nginx:alpine
     container_name: terbangin_nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - web
+      - app
+    networks:
+      - terbangin-net
 
 volumes:
   db_data:
+
+networks:
+  terbangin-net:
+    driver: bridge
