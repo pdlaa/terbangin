@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
@@ -8,11 +7,6 @@ import { useAuth } from '@/context/auth-context';
 export default function Navbar() {
     const { user, loading, logout } = useAuth();
     const pathname = usePathname();
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     const isLandingPage = pathname === '/';
     const isBackOfficeUser = user && ['admin', 'staff', 'manager'].includes(user.role);
@@ -20,7 +14,7 @@ export default function Navbar() {
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
             <div className="max-w-7xl mx-auto">
-                <div className="glass-card px-6 py-3 flex items-center justify-between shadow-glass">
+                <div className="glass-card px-6 py-3 flex items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky to-cyan flex items-center justify-center shadow-glow group-hover:scale-110 transition-transform duration-300">
@@ -46,7 +40,7 @@ export default function Navbar() {
 
                     {/* Auth Buttons */}
                     <div className="flex items-center gap-3">
-                        {!mounted || loading ? (
+                        {loading ? (
                             <div className="w-24 h-9 rounded-xl bg-white/40 animate-pulse" />
                         ) : user ? (
                             <>
