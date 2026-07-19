@@ -98,17 +98,21 @@ function BookingContent() {
         try {
             setLoading(true);
 
-            const flightRes = await fetch(`/api/flight-detail?id=${flightId}`);
-            if (!flightRes.ok) {
-                const errorData = await flightRes.json().catch(() => ({}));
+            const [flightResponse, seatsResponse] = await Promise.all([
+                fetch(`/api/flight-detail?id=${flightId}`),
+                fetch(`/api/flights/${flightId}/seats`),
+            ]);
+
+            if (!flightResponse.ok) {
+                const errorData = await flightResponse.json().catch(() => ({}));
                 throw new Error(errorData.error || `Flight not found (ID: ${flightId})`);
             }
-            const flightData = await flightRes.json();
+
+            const flightData = await flightResponse.json();
             setFlight(flightData.flight);
 
-            const seatsRes = await fetch(`/api/flights/${flightId}/seats`);
-            if (seatsRes.ok) {
-                const seatsData = await seatsRes.json();
+            if (seatsResponse.ok) {
+                const seatsData = await seatsResponse.json();
                 setSeats(seatsData.seats || []);
             }
         } catch (error: any) {

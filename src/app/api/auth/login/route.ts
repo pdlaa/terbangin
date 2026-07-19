@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
             role: user.role,
         });
 
+        const forwardedProto = request.headers.get('x-forwarded-proto');
+        const isHttpsRequest = forwardedProto === 'https' || request.url.startsWith('https://');
+
         const response = NextResponse.json({
             message: 'Login berhasil',
             user: {
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
             name: 'token',
             value: token,
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: isHttpsRequest,
             sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7,
             path: '/',

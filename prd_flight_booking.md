@@ -321,3 +321,272 @@ Sistem menggunakan arsitektur Decoupled (terpisah) antara Frontend Web Applicati
 | **Gagal Koneksi Webhook Midtrans** | Status pembayaran sukses di Midtrans tapi tiket di sistem tetap `pending`. | 1. Implementasikan mekanisme rekonsiliasi terjadwal (cron job) yang mengecek status transaksi ke API Midtrans setiap 1 jam untuk booking yang berstatus `pending` lebih dari 15 menit.<br>2. Menyediakan tombol "Cek Status Pembayaran" manual bagi customer di halaman booking detail. |
 | **Penyalahgunaan API Register (Spamming)** | Database dipenuhi oleh data user palsu (bot). | Menerapkan pembatasan limit (Rate Limiting) pada Express API untuk rute Auth, serta mewajibkan verifikasi token reCAPTCHA yang valid sebelum Express memasukkan data ke database. |
 | **Penyimpanan Lokal Offline Bocor** | Data E-Ticket lokal diakses oleh pihak tidak berwenang pada perangkat publik. | Data yang disimpan di LocalStorage / IndexedDB hanya berupa ringkasan E-Ticket yang tidak sensitif. QR Code boarding diverifikasi di server bandara secara aman, dan data sensitif seperti password/session token tidak disimpan di penyimpanan lokal tanpa enkripsi. |
+
+# syntax=docker/dockerfile:1
+dcf
+<!-- 
+FROM node:20-bookworm-slim AS deps
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+FROM node:20-bookworm-slim AS builder
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+COPY package*.json ./
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ARG NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+
+ENV NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=$NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+ENV DATABASE_URL="mysql://root:root@db:3306/db_maskapai"
+
+RUN npx prisma generate && npm run build
+
+FROM node:20-bookworm-slim AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs nextjs
+
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+
+RUN chmod +x /app/docker-entrypoint.sh && chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["node", "server.js"] 
+-->
+cmps
+<!--
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: terbangin_db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: db_maskapai
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -proot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  web1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY:-}
+    container_name: terbangin_web_1
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://root:root@db:3306/db_maskapai
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+      API_URL: ${API_URL:-http://localhost/api}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-key-that-is-very-secure-and-long-enough-12345}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-6LeIxAcTAAAAAGG-vFI1Tnwp3W8dHBv7HOyZ1oG8}
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
+      NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY:-}
+      MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+      CRON_SECRET: ${CRON_SECRET:-terbangin-cron-secret-2024}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+
+  web2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+        NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY:-}
+    container_name: terbangin_web_2
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://root:root@db:3306/db_maskapai
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+      API_URL: ${API_URL:-http://localhost/api}
+      JWT_SECRET: ${JWT_SECRET:-super-secret-key-that-is-very-secure-and-long-enough-12345}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-6LeIxAcTAAAAAGG-vFI1Tnwp3W8dHBv7HOyZ1oG8}
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY:-6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
+      NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${NEXT_PUBLIC_MIDTRANS_CLIENT_KEY:-}
+      MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+      CRON_SECRET: ${CRON_SECRET:-terbangin-cron-secret-2024}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3002:3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: terbangin_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web1
+      - web2
+
+volumes:
+  db_data:
+-->
+ngnk
+<!--
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    resolver 127.0.0.11 ipv6=off valid=30s;
+
+    upstream terbangin_web {
+        least_conn;
+        server web1:3000 resolve max_fails=3 fail_timeout=10s;
+        server web2:3000 resolve max_fails=3 fail_timeout=10s;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        client_max_body_size 20M;
+
+        location / {
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 30s;
+            proxy_read_timeout 120s;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_pass http://terbangin_web;
+        }
+    }
+}
+-->
+ntryp
+<!--
+#!/bin/sh
+set -eu
+
+echo "============================================"
+echo "  Terbangin — Docker Entrypoint"
+echo "============================================"
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "[ERROR] DATABASE_URL is not set" >&2
+  exit 1
+fi
+
+echo "[INFO] NODE_ENV: ${NODE_ENV:-production}"
+echo "[INFO] DATABASE_URL: ${DATABASE_URL%%@*}@****:****@${DATABASE_URL##*@}"
+echo "[INFO] APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}"
+
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  if npx prisma db push --skip-generate >/tmp/prisma-db-push.log 2>&1; then
+    break
+  fi
+  echo "[DB] menunggu database siap... (${i}/10)"
+  sleep 3
+  if [ "$i" -eq 10 ]; then
+    echo "[ERROR] Prisma db push gagal setelah beberapa kali percobaan" >&2
+    cat /tmp/prisma-db-push.log >&2 || true
+    exit 1
+  fi
+done
+
+echo "[DB] ✅ Database schema berhasil di-sync"
+echo "[DB] Generate Prisma client..."
+npx prisma generate
+
+echo "[DB] ✅ Prisma client generated"
+
+if [ "${SKIP_SEED:-false}" != "true" ]; then
+  echo "[SEED] Menjalankan seed data..."
+  npx prisma db seed || echo "[SEED] ⚠️ Seed gagal atau sudah ada data — melanjutkan..."
+else
+  echo "[SEED] ⏭️ SKIP_SEED=true, melewati seed"
+fi
+
+echo "============================================"
+echo "  ✅ Semua persiapan selesai"
+echo "  🚀 Menjalankan Next.js di port ${PORT:-3000}..."
+echo 
+
+exec "$@"
+-->
